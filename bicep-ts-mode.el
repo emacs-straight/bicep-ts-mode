@@ -6,7 +6,7 @@
 ;; Maintainer : Jostein Kjønigsen <jostein@kjonigsen.net>
 ;; Created    : December 2023
 ;; Keywords   : bicep languages tree-sitter
-;; Version    : 0.1.2
+;; Version    : 0.1.3
 ;; X-URL      : https://github.com/josteink/bicep-ts-mode
 
 ;; This file is part of GNU Emacs.
@@ -65,13 +65,13 @@
      ((parent-is "for_statement") parent-bol bicep-ts-mode-indent-offset))))
 
 (defvar bicep-ts-mode--keywords
-  '("var" "param" "resource"
+  '("var" "param" "resource" "func"
     "module" "type" "metadata"
     "targetScope" "output"
     "for" "in" "using")
   "Bicep keywords for tree-sitter font-locking.")
 
-(setq bicep-ts-mode--font-lock-settings
+(defvar bicep-ts-mode--font-lock-settings
       (treesit-font-lock-rules
        :language 'bicep
        :feature 'comment
@@ -89,7 +89,21 @@
        :feature 'definition
        '((type) @font-lock-type-face
          (parameter_declaration
-          (identifier)) @font-lock-variable-name-face
+          (identifier) @font-lock-variable-name-face)
+         (variable_declaration
+          (identifier) @font-lock-variable-name-face)
+         (resource_declaration
+          (identifier) @font-lock-variable-name-face)
+         (user_defined_function
+          (identifier) @font-lock-function-name-face)
+         (parameter
+          (identifier) @font-lock-variable-name-face)
+         (module_declaration
+          (identifier) @font-lock-variable-name-face)
+         (for_statement
+          (identifier) @font-lock-variable-name-face)
+         (output_declaration
+          (identifier) @font-lock-variable-name-face)
          )
 
        :language 'bicep
@@ -114,8 +128,7 @@
        :feature 'error
        :override t
        '((ERROR) @font-lock-warning-face))
-      ;;"Font-lock settings for BICEP."
-      )
+      "Font-lock settings for BICEP.")
 
 (defun bicep-ts-mode--defun-name (node)
   "Return the defun name of NODE.
@@ -142,7 +155,8 @@ Return nil if there is no name or if NODE is not a defun node."
     ;; Navigation.
     (setq-local treesit-defun-type-regexp
                 (rx (or "module_declaration" "type_declaration" "variable_declaration"
-                        "parameter_declaration" "resource_declaration" "output_declaration")))
+                        "parameter_declaration" "resource_declaration" "output_declaration"
+                        "function_declaration")))
     (setq-local treesit-defun-name-function #'bicep-ts-mode--defun-name)
 
     ;; Font-lock.
@@ -156,9 +170,10 @@ Return nil if there is no name or if NODE is not a defun node."
     ;; Imenu.
     (setq-local treesit-simple-imenu-settings
                 '(("Modules" "\\`module_declaration\\'" nil nil)
+                  ("Functions" "\\`user_defined_function\\'" nil nil)
                   ("Types" "\\`type_declaration\\'" nil nil)
-                  ("Variables" "\\`variable_declaration\\'" nil nil)
                   ("Parameters" "\\`parameter_declaration\\'" nil nil)
+                  ("Variables" "\\`variable_declaration\\'" nil nil)
                   ("Resources" "\\`resource_declaration\\'" nil nil)
                   ("Outputs" "\\`output_declaration\\'" nil nil)))
 
