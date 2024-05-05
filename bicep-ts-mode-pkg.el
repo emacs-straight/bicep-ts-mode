@@ -1,0 +1,2 @@
+;; Generated package description from bicep-ts-mode.el  -*- no-byte-compile: t -*-
+(define-package "bicep-ts-mode" "0.1.3.0.20240218.140135" "tree-sitter support for Bicep" 'nil :commit "5350edd6a1bd05292a26e7a3b291de8cbaf6bc05" :authors '(("Jostein Kjønigsen" . "jostein@kjonigsen.net")) :maintainer '("Jostein Kjønigsen" . "jostein@kjonigsen.net") :keywords '("bicep" "languages" "tree-sitter") :url "https://github.com/josteink/bicep-ts-mode")
