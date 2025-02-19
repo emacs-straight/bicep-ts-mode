@@ -48,9 +48,16 @@
   :safe 'natnump
   :group 'bicep)
 
+(defcustom bicep-ts-mode-default-langserver-path "$HOME/.vscode/extensions/ms-azuretools.vscode-bicep-*/bicepLanguageServer/Bicep.LangServer.dll"
+  "Default expression used to locate Bicep Languageserver.  If found, added to eglot."
+  :type 'string
+  :group 'bicep)
+
 (defvar bicep-ts-mode-syntax-table
   (let ((table (make-syntax-table)))
     (modify-syntax-entry ?=  "."   table)
+    (modify-syntax-entry ?:  "."   table)
+    (modify-syntax-entry ?'  "\""  table)
     (modify-syntax-entry ?\' "\""  table)
     (modify-syntax-entry ?\n "> b" table)
     table)
@@ -63,7 +70,7 @@
      ((parent-is "array") parent-bol bicep-ts-mode-indent-offset)
      ((parent-is "object") parent-bol bicep-ts-mode-indent-offset)
      ((parent-is "for_statement") parent-bol bicep-ts-mode-indent-offset)
-     ((parent-is "call_expression") parent-bol bicep-ts-mode-indent-offset)
+     ((parent-is "arguments") parent-bol bicep-ts-mode-indent-offset)
      )))
 
 (defvar bicep-ts-mode--keywords
@@ -126,7 +133,7 @@
    :language 'bicep
    :feature 'functions
    '((call_expression
-      function: (identifier) @font-lock-function-name-face)
+      function: (identifier) @font-lock-function-call-face)
      (call_expression
       function: (member_expression (identifier)) @font-lock-function-name-face)
      )
@@ -136,6 +143,10 @@
    :override t
    '((ERROR) @font-lock-warning-face))
   "Font-lock settings for BICEP.")
+
+(defun bicep-langserver-path ()
+  (car (file-expand-wildcards
+        (substitute-in-file-name bicep-ts-mode-default-langserver-path))))
 
 (defun bicep-ts-mode--defun-name (node)
   "Return the defun name of NODE.
@@ -192,6 +203,13 @@ Return nil if there is no name or if NODE is not a defun node."
      (progn
        (add-to-list 'auto-mode-alist '("\\.bicep\\(param\\)?\\'"
                                        . bicep-ts-mode))))
+
+;;;###autoload
+(and (boundp 'eglot-server-programs)
+     (file-exists-p (bicep-langserver-path))
+     (progn
+       (add-to-list 'eglot-server-programs
+                    `(bicep-ts-mode . ("dotnet" ,(bicep-langserver-path))))))
 
 (provide 'bicep-ts-mode)
 
