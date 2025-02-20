@@ -71,6 +71,8 @@
      ((parent-is "object") parent-bol bicep-ts-mode-indent-offset)
      ((parent-is "for_statement") parent-bol bicep-ts-mode-indent-offset)
      ((parent-is "arguments") parent-bol bicep-ts-mode-indent-offset)
+     ((parent-is "variable_declaration") parent-bol bicep-ts-mode-indent-offset)
+     ((parent-is "ternary_expression") parent-bol bicep-ts-mode-indent-offset)
      )))
 
 (defvar bicep-ts-mode--keywords
@@ -151,17 +153,28 @@
 (defun bicep-ts-mode--defun-name (node)
   "Return the defun name of NODE.
 Return nil if there is no name or if NODE is not a defun node."
-  (treesit-node-text
-   (treesit-node-child node 1)
-   t))
+  (let ((defun-node (bicep-ts-mode--find-declaration-node node)))
+    (when defun-node
+      (treesit-node-text
+       (treesit-node-child defun-node 1)
+       t)))))
+
+(defun bicep-ts-mode--find-declaration-node (node)
+  "Recursively search up the tree from NODE for a node whose type contains 'declaration'.
+Return the first matching node, or nil if none is found."
+  (when node
+    (if (string-match-p "declaration" (treesit-node-type node))
+        node
+      (bicep-ts-mode--find-declaration-node (treesit-node-parent node)))))
 
 ;;;###autoload
 (define-derived-mode bicep-ts-mode prog-mode "Bicep"
   "Major mode for editing BICEP, powered by tree-sitter."
   :group 'bicep-mode
 
-  (when (treesit-ready-p 'bicep)
-    (treesit-parser-create 'bicep)
+  (if (not (treesit-ready-p 'bicep))
+      (message "Please run `M-x treesit-install-language-grammar RET bicep'")
+    (setq treesit-primary-parser (treesit-parser-create 'bicep))
 
     ;; Comments
     (setq-local comment-start "// ")
@@ -197,6 +210,10 @@ Return nil if there is no name or if NODE is not a defun node."
 
     (treesit-major-mode-setup)))
 
+;; Our treesit-font-lock-rules expect this version of the grammar:
+(add-to-list 'treesit-language-source-alist
+             '(bicep . ("https://github.com/tree-sitter-grammars/tree-sitter-bicep" "v1.1.0")))
+
 ;;;###autoload
 (and (fboundp 'treesit-ready-p)
      (treesit-ready-p 'bicep)
@@ -205,11 +222,11 @@ Return nil if there is no name or if NODE is not a defun node."
                                        . bicep-ts-mode))))
 
 ;;;###autoload
-(and (boundp 'eglot-server-programs)
-     (file-exists-p (bicep-langserver-path))
-     (progn
-       (add-to-list 'eglot-server-programs
-                    `(bicep-ts-mode . ("dotnet" ,(bicep-langserver-path))))))
+(eval-after-load 'eglot
+  '(and (file-exists-p (bicep-langserver-path))
+        (progn
+          (add-to-list 'eglot-server-programs
+                       `(bicep-ts-mode . ("dotnet" ,(bicep-langserver-path)))))))
 
 (provide 'bicep-ts-mode)
 
