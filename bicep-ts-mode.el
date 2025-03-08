@@ -99,6 +99,9 @@ If found, added to eglot."
    :language 'bicep
    :feature 'definition
    '((type) @font-lock-type-face
+     (resource_declaration
+      (string
+       (string_content) @font-lock-type-face))
      (parameter_declaration
       (identifier) @font-lock-variable-name-face)
      (variable_declaration
@@ -112,12 +115,33 @@ If found, added to eglot."
      (module_declaration
       (identifier) @font-lock-variable-name-face)
      (for_statement
-      (identifier) @font-lock-variable-name-face)
+      initializer: (identifier) @font-lock-variable-name-face)
+     (for_statement
+      (identifier) @font-lock-variable-use-face)
      (output_declaration
       (identifier) @font-lock-variable-name-face)
      (object_property
-      (identifier) @font-lock-variable-name-face)
-     )
+      (identifier) @font-lock-property-name-face
+      ":"
+      (identifier) @font-lock-variable-use-face)
+     (object_property
+      (identifier) @font-lock-property-name-face
+      ":"
+      [(array) (string) (object) (member_expression)]
+      )
+     (interpolation
+      (identifier) @font-lock-variable-use-face)
+     (arguments
+      (identifier) @font-lock-variable-use-face)
+     (member_expression
+      object: (identifier) @font-lock-variable-use-face)
+     (if_statement
+      (parenthesized_expression
+       (identifier) @font-lock-variable-use-face))
+     (binary_expression
+      (identifier) @font-lock-variable-use-face)
+     (array
+      (identifier) @font-lock-variable-use-face))
 
    :language 'bicep
    :feature 'number
@@ -126,7 +150,10 @@ If found, added to eglot."
 
    :language 'bicep
    :feature 'string
-   '((string_content) @font-lock-string-face)
+   '((string_content) @font-lock-string-face
+     (interpolation
+      ["${" "}"] @font-lock-misc-punctuation-face)
+     (escape_sequence) @font-lock-escape-face)
 
    :language 'bicep
    :feature 'boolean
@@ -137,7 +164,9 @@ If found, added to eglot."
    '((call_expression
       function: (identifier) @font-lock-function-call-face)
      (call_expression
-      function: (member_expression (identifier)) @font-lock-function-name-face)
+      function: (member_expression (identifier)) @font-lock-function-call-face)
+     (call_expression
+      function: (member_expression (property_identifier) @font-lock-function-call-face))
      )
 
    :language 'bicep
