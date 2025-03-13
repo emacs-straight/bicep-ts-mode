@@ -30,6 +30,8 @@
 ;;; Code:
 
 (require 'treesit)
+(require 'json)
+(require 'url)
 
 (declare-function treesit-parser-create "treesit.c")
 (declare-function treesit-induce-sparse-tree "treesit.c")
@@ -39,7 +41,7 @@
 (declare-function treesit-node-child-by-field-name "treesit.c")
 
 (defgroup bicep nil
-  "Major-mode for editing Bicep-files"
+  "Major-mode for editing Bicep-files."
   :group 'languages)
 
 (defcustom bicep-ts-mode-indent-offset 2
@@ -47,10 +49,18 @@
   :type 'natnum
   :safe #'natnump)
 
-(defcustom bicep-ts-mode-default-langserver-path "$HOME/.vscode/extensions/ms-azuretools.vscode-bicep-*/bicepLanguageServer/Bicep.LangServer.dll"
+(defcustom bicep-ts-mode-enforce-quotes t
+  "Makes bicep-ts-mode enforce the correct kind of quote when creating strings.
+Changes may require an Emacs-restart to take effect."
+  :type 'boolean
+  :safe #'booleanp)
+
+(defcustom bicep-ts-mode-default-langserver-path
+  (expand-file-name ".cache/bicep/Bicep.LangServer.dll" user-emacs-directory)
   ;; FIXME: Document the ability to use $ENV vars and glob patterns?
   "Default expression used to locate Bicep Languageserver.
-If found, added to eglot."
+If found, added to eglot.
+Changes may require an Emacs-restart to take effect."
   :type 'string)
 
 (defvar bicep-ts-mode-syntax-table
@@ -60,6 +70,11 @@ If found, added to eglot."
     (modify-syntax-entry ?'  "\""  table)
     (modify-syntax-entry ?\' "\""  table)
     (modify-syntax-entry ?\n "> b" table)
+
+    ;; Define `//` as a comment starter
+    (modify-syntax-entry ?/ ". 12" table)
+    ;; Define newline as the comment end
+    ;;(modify-syntax-entry ?\n ">" table)
     table)
   "Syntax table for `bicep-ts-mode'.")
 
@@ -137,6 +152,8 @@ If found, added to eglot."
       (identifier) @font-lock-variable-use-face)
      (member_expression
       object: (identifier) @font-lock-variable-use-face)
+     (member_expression
+      property: (property_identifier) @font-lock-property-use-face)
      (if_statement
       (parenthesized_expression
        (identifier) @font-lock-variable-use-face))
@@ -163,19 +180,69 @@ If found, added to eglot."
 
    :language 'bicep
    :feature 'functions
-   '((call_expression
+   :override t ;; required to override property-use-face in other member-expressions!
+   '(
+     (call_expression
       function: (identifier) @font-lock-function-call-face)
      (call_expression
-      function: (member_expression (identifier)) @font-lock-function-call-face)
-     (call_expression
-      function: (member_expression (property_identifier) @font-lock-function-call-face))
-     )
+      function: (member_expression
+                 property: (property_identifier) @font-lock-function-call-face)))
 
    :language 'bicep
    :feature 'error
    :override t
    '((ERROR) @font-lock-warning-face))
   "Font-lock settings for BICEP.")
+
+(defun bicep--fetch-json-array (url)
+  "Fetch JSON from URL, extract first array element, and return PROPERTY."
+  (with-current-buffer (url-retrieve-synchronously url t)
+    (goto-char (point-min))
+    (re-search-forward "\n\n")  ;; Skip headers
+    (let* ((json-array (json-parse-buffer :array-type 'list)))
+      json-array)))
+
+(defun bicep--unzip-file (zip-file destination)
+  "Unzip ZIP-FILE into DESTINATION directory using the 'unzip' shell command."
+  (unless (file-directory-p destination)
+    (make-directory destination :parents))  ;; Ensure the destination directory exists
+  (let ((exit-code (call-process "unzip" nil nil nil "-o" zip-file "-d" destination)))
+    (if (zerop exit-code)
+        (message "Successfully unzipped %s to %s" zip-file destination)
+      (error "Failed to unzip %s (exit code %d)" zip-file exit-code))))
+
+(defun bicep--get-latest-release-version ()
+  (let* ((release-json (bicep--fetch-json-array "https://api.github.com/repos/Azure/bicep/releases"))
+         (first        (car release-json)) ;; assume first = latest
+         (version      (gethash "tag_name" first)))
+    version))
+
+(defun bicep--download-langserver ()
+  (let* ((bicep-dir (expand-file-name ".cache/bicep" user-emacs-directory))
+         (download-dir  (expand-file-name "dl" bicep-dir))
+         (download-file (expand-file-name "bicep-langserver.zip" download-dir)))
+    (make-directory bicep-dir :parents)
+    (make-directory download-dir :parents)
+    (let* ((version     (bicep--get-latest-release-version))
+           (url         (format "https://github.com/Azure/bicep/releases/download/%s/bicep-langserver.zip" version)))
+      (url-copy-file url download-file 't)
+      (bicep--unzip-file download-file bicep-dir)
+      (delete-directory download-dir t)
+      ;; make our function respond with something more interesting than nil :)
+      (message (format "Bicep LangServer version %s downloaded and unpacked to \'%s\'" version bicep-dir)))))
+
+(defun bicep-install-langserver ()
+  "Downloads the lang-server and unpacks it in the default location."
+  (interactive)
+  (bicep--download-langserver)
+  (bicep--register-langserver))
+
+(defun bicep--register-langserver ()
+  (defvar eglot-server-programs)
+  (and (file-exists-p (bicep-langserver-path))
+       (add-to-list 'eglot-server-programs
+                    `(bicep-ts-mode . ("dotnet" ,(bicep-langserver-path))))))
+
 
 (defun bicep-langserver-path ()
   ;; Note: In GNU land, we call this a file name, not a path.
@@ -249,6 +316,13 @@ Return the first matching node, or nil if none is found."
 
     (treesit-major-mode-setup)))
 
+(defun bicep--insert-single-quote ()
+  (interactive)
+  (insert-char ?'))
+
+(when bicep-ts-mode-enforce-quotes
+  (define-key bicep-ts-mode-map (kbd "\"") #'bicep--insert-single-quote))
+
 ;; Our treesit-font-lock-rules expect this version of the grammar:
 (add-to-list 'treesit-language-source-alist
              '(bicep . ("https://github.com/tree-sitter-grammars/tree-sitter-bicep" "v1.1.0")))
@@ -262,10 +336,7 @@ Return the first matching node, or nil if none is found."
 
 ;;;###autoload
 (with-eval-after-load 'eglot
-  (defvar eglot-server-programs)
-  (and (file-exists-p (bicep-langserver-path))
-       (add-to-list 'eglot-server-programs
-                    `(bicep-ts-mode . ("dotnet" ,(bicep-langserver-path))))))
+  (bicep--register-langserver))
 
 (provide 'bicep-ts-mode)
 
