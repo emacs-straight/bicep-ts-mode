@@ -64,13 +64,13 @@ Changes may require an Emacs-restart to take effect."
 
 (defvar bicep-ts-mode--syntax-table
   (let ((table (make-syntax-table)))
-    (modify-syntax-entry ?=  "."   table)
-    (modify-syntax-entry ?:  "."   table)
-    (modify-syntax-entry ?\" "."  table)   ;; Double quote as punctuation
-    (modify-syntax-entry ?'  "\""  table)  ;; Single quote as string-delimiter
-    (modify-syntax-entry ?\\ "\\" table)   ;; Backslash as escape character
-    (modify-syntax-entry ?/ ". 12" table)  ;; Define `//` as a comment starter
-    (modify-syntax-entry ?\n ">" table)    ;; Newline ends comments
+    (modify-syntax-entry ?=  "."    table)
+    (modify-syntax-entry ?:  "."    table)
+    (modify-syntax-entry ?\" "."    table)  ;; Double quote as punctuation
+    (modify-syntax-entry ?'  "\""   table)  ;; Single quote as string-delimiter
+    (modify-syntax-entry ?\\ "\\"   table)  ;; Backslash as escape character
+    (modify-syntax-entry ?/  ". 12" table)  ;; Define `//` as a comment starter
+    (modify-syntax-entry ?\n ">"    table)  ;; Newline ends comments
     table)
   "Syntax table for `bicep-ts-mode'.")
 
@@ -140,8 +140,8 @@ Changes may require an Emacs-restart to take effect."
      (object_property
       (identifier) @font-lock-property-name-face
       ":"
-      [(array) (string) (object) (member_expression)]
-      )
+      [(array) (string) (number) (boolean) (object) (member_expression) (call_expression)
+       (for_statement) (ternary_expression)])
      (interpolation
       (identifier) @font-lock-variable-use-face)
      (arguments
@@ -155,7 +155,12 @@ Changes may require an Emacs-restart to take effect."
      (binary_expression
       (identifier) @font-lock-variable-use-face)
      (array
-      (identifier) @font-lock-variable-use-face))
+      (identifier) @font-lock-variable-use-face)
+     (subscript_expression
+      object: (identifier) @font-lock-variable-use-face
+      index: (identifier) @font-lock-variable-use-face)
+     (ternary_expression
+      condition: (identifier) @font-lock-variable-use-face))
 
    :language 'bicep
    :feature 'number
