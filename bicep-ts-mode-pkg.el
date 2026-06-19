@@ -1,2 +1,2 @@
-;; Generated package description from bicep-ts-mode.el  -*- no-byte-compile: t -*-
-(define-package "bicep-ts-mode" "0.1.4.0.20251121.60244" "tree-sitter support for Bicep" 'nil :commit "b8ad2a7896bc3f3734e995bd1c4e708db0ead239" :authors '(("Jostein Kjønigsen" . "jostein@kjonigsen.net")) :maintainer '("Jostein Kjønigsen" . "jostein@kjonigsen.net") :keywords '("bicep" "languages" "tree-sitter") :url "https://github.com/josteink/bicep-ts-mode")
+;; Generated package description from bicep-ts-mode.el  -*- no-byte-compile: t; lexical-binding:t -*-
+(define-package "bicep-ts-mode" "0.1.4.0.20260618.81" "tree-sitter support for Bicep" 'nil :commit "ef66f70bd699c866c482ab78409a17a1ad0caaa9" :authors '(("Jostein Kjønigsen" . "jostein@kjonigsen.net")) :maintainer '("Jostein Kjønigsen" . "jostein@kjonigsen.net") :keywords '("bicep" "languages" "tree-sitter") :url "https://github.com/josteink/bicep-ts-mode")
